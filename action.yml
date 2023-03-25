@@ -1,11 +1,25 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Javascript Tools'
+description: 'This method allows the use of Typescripts methods against an input value.'
+author: 'Swanseatom'
 inputs:
-  milliseconds: # change this
+  value:
+    description: "The value used to instantiate the instance."
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+  method:
+    description: "The method name to call on the instance."
+    required: true
+  args:
+    description: "A comma-separated list of argument values to pass to the method."
+    required: false
+  argTypes:
+    description: "A comma-separated list of argument types corresponding to the args array."
+    required: false
+  type:
+    description: "The type of instance to create. Must be one of 'string', 'number', or 'boolean'."
+    required: true
+  envVar:
+    description: "The name of the env var you want the result set to."
+    required: false
 runs:
   using: 'node16'
   main: 'dist/index.js'

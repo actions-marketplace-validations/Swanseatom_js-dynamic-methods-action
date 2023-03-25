@@ -1,6 +1,108 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 361:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.dynamicMethodCall = void 0;
+/**
+ * Instantiates an instance of the specified type using the provided value.
+ *
+ * @param value - The value to use when instantiating the instance.
+ * @param type - The type of instance to create. Must be one of "string", "number", or "boolean".
+ * @returns The instantiated instance of the specified type.
+ * @throws {Error} If an invalid type is provided.
+ */
+function instantiateInstance(value, type) {
+    switch (type) {
+        case 'string': {
+            return new String(value);
+        }
+        case 'number': {
+            const numberValue = parseFloat(value);
+            if (isNaN(numberValue))
+                throw new Error('Invalid number value.');
+            return new Number(numberValue);
+        }
+        case 'boolean': {
+            const lowerCaseValue = value.toLowerCase();
+            if (lowerCaseValue === 'true')
+                return new Boolean(true);
+            if (lowerCaseValue === 'false')
+                return new Boolean(false);
+            throw new Error('Invalid boolean value.');
+        }
+        default: {
+            throw new Error(`Unsupported type '${type}'.`);
+        }
+    }
+}
+/**
+ * Instantiates an argument based on the specified argument type.
+ *
+ * @param arg - The argument value to instantiate.
+ * @param argType - The type of the argument. Must be one of "string", "number", "boolean", or "regex".
+ * @returns The instantiated argument of the specified type.
+ * @throws {Error} If an unsupported or invalid type is provided.
+ */
+function instantiateArgument(arg, argType) {
+    switch (argType) {
+        case 'string':
+            return arg;
+        case 'number':
+            return parseFloat(arg);
+        case 'boolean':
+            return arg.toLowerCase() === 'true';
+        case 'regex':
+            try {
+                return new RegExp(arg);
+            }
+            catch (error) {
+                throw new Error(`Invalid regex: '${arg}'.`);
+            }
+        default:
+            throw new Error(`Unsupported type '${argType}'.`);
+    }
+}
+/**
+ * Calls a method on an instance (String, Number, or Boolean) with the provided arguments.
+ *
+ * @param value - The value to use when instantiating the instance.
+ * @param method - The method name to call on the instance.
+ * @param args - An optional array of argument values to pass to the method.
+ * @param argTypes - An optional array of argument types corresponding to the args array.
+ *                   Must have the same length as the args array if provided.
+ * @param type - The type of instance to create. Must be one of "string", "number", or "boolean".
+ * @returns The result of calling the specified method on the instance.
+ * @throws {Error} If the method does not exist on the instance, or if the lengths of args and argTypes arrays do not match.
+ */
+function dynamicMethodCall(value, method, type, args, argTypes
+// eslint-disable-next-line  @typescript-eslint/no-explicit-any
+) {
+    const instance = instantiateInstance(value, type);
+    // Check if the method exists on the instance
+    if (typeof instance[method] !== 'function') {
+        throw new Error(`Method '${method}' does not exist on the ${type} instance.`);
+    }
+    // If args and argTypes are provided, check if their lengths match
+    if (args && argTypes && args.length !== argTypes.length) {
+        throw new Error('The lengths of args and argTypes arrays do not match.');
+    }
+    // Instantiate the arguments using the argTypes parameter
+    const instantiatedArgs = args && argTypes
+        ? args.map((arg, index) => instantiateArgument(arg, argTypes[index]))
+        : [];
+    // Call the method with the instantiated arguments
+    return instance[method](...instantiatedArgs);
+}
+exports.dynamicMethodCall = dynamicMethodCall;
+
+
+/***/ }),
+
 /***/ 109:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -36,16 +138,41 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(186));
-const wait_1 = __nccwpck_require__(817);
+const dynamic_methods_1 = __nccwpck_require__(361);
+function getInputAsArray(name) {
+    const input = core.getInput(name);
+    if (!input)
+        return [];
+    return input.split(',').map(item => item.trim());
+}
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const ms = core.getInput('milliseconds');
-            core.debug(`Waiting ${ms} milliseconds ...`); // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
-            core.debug(new Date().toTimeString());
-            yield (0, wait_1.wait)(parseInt(ms, 10));
-            core.debug(new Date().toTimeString());
-            core.setOutput('time', new Date().toTimeString());
+            // Read inputs from the GitHub Action
+            const value = core.getInput('value');
+            const method = core.getInput('method');
+            const args = getInputAsArray('args');
+            const argTypes = getInputAsArray('argTypes').map(item => item);
+            const type = core.getInput('type');
+            const envVar = core.getInput('envVar');
+            // Validate that the required inputs are provided
+            if (!value || !method || !type) {
+                core.setFailed("Required inputs 'value', 'method', and 'type' must be provided.");
+            }
+            else {
+                try {
+                    const result = (0, dynamic_methods_1.dynamicMethodCall)(value, method, type, args, argTypes);
+                    core.info(`The result of the method call is: ${result}`);
+                    core.setOutput('result', result);
+                    if (envVar) {
+                        core.info(`The result has been assigned to: env.${envVar}`);
+                        core.exportVariable(envVar, result);
+                    }
+                }
+                catch (error) {
+                    core.setFailed(`Error during method call: ${error.message}`);
+                }
+            }
         }
         catch (error) {
             if (error instanceof Error)
@@ -54,37 +181,6 @@ function run() {
     });
 }
 run();
-
-
-/***/ }),
-
-/***/ 817:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.wait = void 0;
-function wait(milliseconds) {
-    return __awaiter(this, void 0, void 0, function* () {
-        return new Promise(resolve => {
-            if (isNaN(milliseconds)) {
-                throw new Error('milliseconds not a number');
-            }
-            setTimeout(() => resolve('done!'), milliseconds);
-        });
-    });
-}
-exports.wait = wait;
 
 
 /***/ }),
